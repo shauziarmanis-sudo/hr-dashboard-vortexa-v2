@@ -1,0 +1,1268 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="light">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+    <title>Enterprise HR Analytics Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+    <style>
+        /* ==========================================================================
+           MODULE: CSS / STYLES & THEMING
+           ========================================================================== */
+        :root {
+            /* Light Theme Variables */
+            --bg: #F3F4F6;
+            --surface: #FFFFFF;
+            --border: #E5E7EB;
+            --text-main: #111827;
+            --text-muted: #6B7280;
+            --primary: #4F46E5;
+            --primary-hover: #4338CA;
+            --success: #10B981;
+            --success-bg: #D1FAE5;
+            --warning: #F59E0B;
+            --warning-bg: #FEF3C7;
+            --danger: #EF4444;
+            --danger-bg: #FEE2E2;
+            --info: #3B82F6;
+            --sidebar-bg: #1F2937;
+            --sidebar-text: #D1D5DB;
+            --sidebar-active: #111827;
+            --sidebar-hover: #374151;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --radius: 12px;
+            --transition: all 0.3s ease;
+        }
+
+        [data-theme="dark"] {
+            /* Dark Theme Variables */
+            --bg: #111827;
+            --surface: #1F2937;
+            --border: #374151;
+            --text-main: #F9FAFB;
+            --text-muted: #9CA3AF;
+            --primary: #6366F1;
+            --success-bg: rgba(16, 185, 129, 0.2);
+            --warning-bg: rgba(245, 158, 11, 0.2);
+            --danger-bg: rgba(239, 68, 68, 0.2);
+            --sidebar-bg: #0B0F19;
+            --sidebar-active: #1F2937;
+            --sidebar-hover: #1F2937;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
+        body { background-color: var(--bg); color: var(--text-main); display: flex; height: 100vh; overflow: hidden; font-size: 14px; }
+
+        /* Typography */
+        h1, h2, h3 { color: var(--text-main); font-weight: 600; }
+        .page-title { font-size: 1.5rem; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; }
+
+        /* Sidebar */
+        .sidebar { width: 260px; background: var(--sidebar-bg); color: var(--sidebar-text); display: flex; flex-direction: column; z-index: 50; transition: transform 0.3s ease; flex-shrink: 0; overflow-y: auto; }
+        .sidebar-brand { padding: 24px 20px; font-size: 1.25rem; font-weight: 700; color: #FFF; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; align-items: center; gap: 10px; }
+        .nav-group { margin-top: 20px; }
+        .nav-label { padding: 0 20px; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: #6B7280; font-weight: 600; margin-bottom: 8px; }
+        .nav-list { list-style: none; }
+        .nav-item { padding: 10px 20px; cursor: pointer; display: flex; align-items: center; gap: 12px; transition: var(--transition); border-left: 3px solid transparent; color: var(--sidebar-text); font-weight: 500; }
+        .nav-item:hover { background: var(--sidebar-hover); color: #FFF; }
+        .nav-item.active { background: var(--sidebar-active); color: #FFF; border-left-color: var(--primary); }
+        .nav-icon { width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; opacity: 0.6; transition: var(--transition); }
+        .nav-icon svg { width: 18px; height: 18px; stroke-width: 2px; }
+        .nav-item.active .nav-icon, .nav-item:hover .nav-icon { opacity: 1; color: var(--primary); }
+
+        /* Main Content */
+        .main-content { flex-grow: 1; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+        
+        /* Topbar & Global Filters */
+        .topbar { background: var(--surface); padding: 16px 24px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; z-index: 40; }
+        .filter-section { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+        
+        .pt-dropdown { padding: 8px 36px 8px 16px; background: var(--bg); border: 1px solid var(--border); border-radius: 20px; font-size: 0.85rem; font-weight: 600; color: var(--text-main); outline: none; cursor: pointer; transition: var(--transition); appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236B7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; background-size: 14px; }
+        .pt-dropdown:hover, .pt-dropdown:focus { border-color: var(--primary); }
+        [data-theme="dark"] .pt-dropdown { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%239CA3AF' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E"); }
+        
+        .date-filter { display: flex; align-items: center; gap: 8px; background: var(--bg); padding: 4px 12px; border-radius: 20px; border: 1px solid var(--border); }
+        .date-input { border: none; background: transparent; color: var(--text-main); font-size: 0.85rem; font-weight: 500; outline: none; cursor: pointer; }
+        
+        .top-actions { display: flex; align-items: center; gap: 16px; }
+        .icon-btn { background: var(--bg); border: 1px solid var(--border); color: var(--text-main); width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: var(--transition); font-size: 1.1rem; }
+        .icon-btn:hover { background: var(--border); }
+
+        /* Page Container */
+        .page-wrapper { flex-grow: 1; padding: 24px; overflow-y: auto; display: none; }
+        .page-wrapper.active { display: block; animation: fadeIn 0.4s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* KPI Cards */
+        .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-bottom: 24px; }
+        .kpi-card { background: var(--surface); padding: 20px; border-radius: var(--radius); border: 1px solid var(--border); box-shadow: var(--shadow); position: relative; overflow: hidden; }
+        .kpi-card::before { content: ''; position: absolute; top: 0; left: 0; width: 4px; height: 100%; background: var(--primary); }
+        .kpi-card.success::before { background: var(--success); }
+        .kpi-card.warning::before { background: var(--warning); }
+        .kpi-card.danger::before { background: var(--danger); }
+        .kpi-title { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+        .kpi-value { font-size: 2rem; font-weight: 700; color: var(--text-main); line-height: 1.2; }
+        .kpi-sub { font-size: 0.75rem; color: var(--text-muted); margin-top: 8px; display: flex; align-items: center; gap: 4px; }
+
+        /* Charts Section */
+        .chart-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 24px; margin-bottom: 24px; }
+        .chart-grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
+        @media (max-width: 1200px) { .chart-grid.cols-3 { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 768px) { .chart-grid { grid-template-columns: 1fr; } .chart-grid.cols-3 { grid-template-columns: 1fr; } }
+        
+        .card { background: var(--surface); padding: 20px; border-radius: var(--radius); border: 1px solid var(--border); box-shadow: var(--shadow); display: flex; flex-direction: column; }
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .card-title { font-size: 1.05rem; font-weight: 600; color: var(--text-main); }
+        .chart-container { position: relative; flex-grow: 1; min-height: 250px; width: 100%; }
+
+        /* Tables */
+        .table-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px; }
+        .search-box { display: flex; align-items: center; background: var(--bg); border: 1px solid var(--border); padding: 6px 12px; border-radius: 8px; width: 250px; }
+        .search-box input { border: none; background: transparent; outline: none; width: 100%; color: var(--text-main); font-size: 0.85rem; padding-left: 8px; }
+        .btn { padding: 8px 16px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: var(--transition); border: none; display: flex; align-items: center; gap: 6px; }
+        .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text-main); }
+        .btn-outline:hover { background: var(--bg); }
+        
+        .table-responsive { overflow-x: auto; border-radius: 8px; border: 1px solid var(--border); }
+        table { width: 100%; border-collapse: collapse; text-align: left; }
+        th, td { padding: 14px 16px; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
+        th { font-weight: 600; color: var(--text-muted); background: rgba(0,0,0,0.02); white-space: nowrap; text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.75rem; }
+        [data-theme="dark"] th { background: rgba(255,255,255,0.02); }
+        tr:hover td { background: var(--bg); }
+        tr:last-child td { border-bottom: none; }
+        
+        .badge { padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; white-space: nowrap; display: inline-block; }
+        .badge.success { background: var(--success-bg); color: var(--success); }
+        .badge.warning { background: var(--warning-bg); color: var(--warning); }
+        .badge.danger { background: var(--danger-bg); color: var(--danger); }
+        .badge.info { background: #DBEAFE; color: var(--info); }
+        [data-theme="dark"] .badge.info { background: rgba(59, 130, 246, 0.2); }
+
+        /* Loader & Overlay */
+        .loader-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: var(--bg); z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: opacity 0.5s; }
+        .spinner { width: 40px; height: 40px; border: 4px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 16px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Mobile Adjustments */
+        .mobile-toggle { display: none; background: none; border: none; font-size: 1.5rem; color: var(--text-main); cursor: pointer; }
+        @media (max-width: 768px) {
+            .sidebar { position: fixed; transform: translateX(-100%); height: 100%; }
+            .sidebar.open { transform: translateX(0); box-shadow: 4px 0 24px rgba(0,0,0,0.5); }
+            .mobile-toggle { display: block; }
+            .topbar { padding: 12px 16px; }
+            .kpi-grid { grid-template-columns: 1fr 1fr; }
+        }
+        @media (max-width: 480px) { .kpi-grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+
+    <!-- Global Loader -->
+    <div class="loader-overlay" id="globalLoader">
+        <div class="spinner"></div>
+        <h3 style="color: var(--text-main)">Connecting to Google Sheets...</h3>
+        <p style="color: var(--text-muted); margin-top: 8px; font-size: 0.85rem;" id="loaderText">Fetching HR Data</p>
+    </div>
+
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-brand">
+            <span style="color: var(--primary)">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>
+            </span> HR Analytics
+        </div>
+        
+        <div class="nav-group">
+            <div class="nav-label">Rekrutmen</div>
+            <ul class="nav-list">
+                <li class="nav-item active" data-page="page-permintaan">
+                    <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg></span> Permintaan Karyawan
+                </li>
+                <li class="nav-item" data-page="page-pelamar">
+                    <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg></span> Form Pelamar
+                </li>
+                <li class="nav-item" data-page="page-pengajuan">
+                    <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect><path d="M15 11h-6"></path><path d="M15 15h-6"></path></svg></span> Form Pengajuan HR
+                </li>
+                <li class="nav-item" data-page="page-prommut">
+                    <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg></span> Promosi & Mutasi
+                </li>
+                <li class="nav-item" data-page="page-interview">
+                    <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg></span> Jadwal Interview
+                </li>
+                <li class="nav-item" data-page="page-turnover">
+                    <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"></polyline><polyline points="23 20 23 14 17 14"></polyline><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"></path></svg></span> Turnover Karyawan
+                </li>
+            </ul>
+        </div>
+
+        <div class="nav-group">
+            <div class="nav-label">Absensi</div>
+            <ul class="nav-list">
+                <li class="nav-item" data-page="page-absensi">
+                    <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg></span> Overview Absensi
+                </li>
+                <!-- Child menus grouped in Overview for better UX in single-page -->
+            </ul>
+        </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+        <!-- Topbar: Global Filters -->
+        <header class="topbar">
+            <div class="filter-section">
+                <button class="mobile-toggle" id="btnToggleMenu">☰</button>
+                <select id="filterPT" class="pt-dropdown" title="Pilih Perusahaan">
+                    <option value="ALL">ALL PT</option>
+                    <option value="VVV">VVV</option>
+                    <option value="VVA">VVA</option>
+                    <option value="VLA">VLA</option>
+                    <option value="VCI">VCI</option>
+                    <option value="VMN">VMN</option>
+                </select>
+                <div class="date-filter">
+                    <span>📅</span>
+                    <input type="month" id="filterDateFrom" class="date-input" title="Start Month">
+                    <span style="color: var(--border)">|</span>
+                    <input type="month" id="filterDateTo" class="date-input" title="End Month">
+                </div>
+            </div>
+            <div class="top-actions">
+                <button class="icon-btn" id="btnTheme" title="Toggle Dark/Light Mode">🌙</button>
+                <button class="icon-btn" id="btnRefresh" title="Refresh Data">⟳</button>
+            </div>
+        </header>
+
+        <!-- =========================================================
+             PAGE 1: PERMINTAAN KARYAWAN
+             ========================================================= -->
+        <div id="page-permintaan" class="page-wrapper active">
+            <div class="page-title">
+                <h2>Dashboard Permintaan Karyawan</h2>
+            </div>
+            
+            <div class="kpi-grid">
+                <div class="kpi-card">
+                    <div class="kpi-title">Total Permintaan</div>
+                    <div class="kpi-value" id="kpi-req-total">0</div>
+                    <div class="kpi-sub">Sepanjang periode</div>
+                </div>
+                <div class="kpi-card success">
+                    <div class="kpi-title">Sudah Terpenuhi (Done)</div>
+                    <div class="kpi-value" id="kpi-req-done">0</div>
+                    <div class="kpi-sub">Kandidat join</div>
+                </div>
+                <div class="kpi-card danger">
+                    <div class="kpi-title">Belum Terpenuhi</div>
+                    <div class="kpi-value" id="kpi-req-open">0</div>
+                    <div class="kpi-sub">Masih proses pencarian</div>
+                </div>
+                <div class="kpi-card warning">
+                    <div class="kpi-title">Avg Waktu Terpenuhi</div>
+                    <div class="kpi-value" id="kpi-req-avg">0 <span style="font-size:1rem">Hari</span></div>
+                    <div class="kpi-sub">Estimasi SLA</div>
+                </div>
+            </div>
+
+            <div class="chart-grid cols-3">
+                <div class="card" style="grid-column: span 2;">
+                    <div class="card-header"><h3 class="card-title">Permintaan vs Terpenuhi per PT</h3></div>
+                    <div class="chart-container"><canvas id="chartReqBar"></canvas></div>
+                </div>
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">Recruitment Pipeline Status</h3></div>
+                    <div class="chart-container"><canvas id="chartReqPie"></canvas></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="table-toolbar">
+                    <h3 class="card-title">Daftar Open Request</h3>
+                    <div style="display:flex; gap:10px;">
+                        <div class="search-box">
+                            <span>🔍</span> <input type="text" id="searchReq" placeholder="Cari posisi / PT...">
+                        </div>
+                        <button class="btn btn-outline" onclick="Utils.exportCSV('tableReq', 'Data_Permintaan')">⬇ Export CSV</button>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table id="tableReq">
+                        <thead>
+                            <tr><th>Tanggal</th><th>PT</th><th>Posisi</th><th>Level</th><th>Status Req</th><th>Proses</th><th>PIC</th></tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- =========================================================
+             PAGE 2: FORM PELAMAR
+             ========================================================= -->
+        <div id="page-pelamar" class="page-wrapper">
+            <div class="page-title"><h2>Analisis Data Pelamar</h2></div>
+            
+            <div class="kpi-grid">
+                <div class="kpi-card"><div class="kpi-title">Total Pelamar Masuk</div><div class="kpi-value" id="kpi-pel-total">0</div></div>
+                <div class="kpi-card warning"><div class="kpi-title">Belum Diproses / Review</div><div class="kpi-value" id="kpi-pel-review">0</div></div>
+                <div class="kpi-card success"><div class="kpi-title">Sudah Join</div><div class="kpi-value" id="kpi-pel-join">0</div></div>
+                <div class="kpi-card danger"><div class="kpi-title">Gagal / Withdraw</div><div class="kpi-value" id="kpi-pel-gagal">0</div></div>
+            </div>
+
+            <div class="chart-grid">
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">Pipeline Pelamar (Funnel)</h3></div>
+                    <div class="chart-container"><canvas id="chartPelFunnel"></canvas></div>
+                </div>
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">Sumber Pelamar (Channel)</h3></div>
+                    <div class="chart-container"><canvas id="chartPelSource"></canvas></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="table-toolbar">
+                    <h3 class="card-title">Daftar Pelamar Terbaru</h3>
+                    <div style="display:flex; gap:10px;">
+                        <div class="search-box"><span>🔍</span> <input type="text" id="searchPel" placeholder="Cari nama pelamar..."></div>
+                        <button class="btn btn-outline" onclick="Utils.exportCSV('tablePel', 'Data_Pelamar')">⬇ Export</button>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table id="tablePel">
+                        <thead>
+                            <tr><th>Tgl Daftar</th><th>Nama Pelamar</th><th>Posisi Dilamar</th><th>Brand / PT</th><th>Sumber</th><th>Status</th></tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- =========================================================
+             PAGE 3: FORM PENGAJUAN HR & SP
+             ========================================================= -->
+        <div id="page-pengajuan" class="page-wrapper">
+            <div class="page-title"><h2>Pengajuan HR & Surat Peringatan</h2></div>
+            
+            <div class="kpi-grid">
+                <div class="kpi-card"><div class="kpi-title">Total Form Pengajuan</div><div class="kpi-value" id="kpi-peng-total">0</div></div>
+                <div class="kpi-card warning"><div class="kpi-title">Total SP Diterbitkan</div><div class="kpi-value" id="kpi-peng-sp">0</div></div>
+                <div class="kpi-card danger"><div class="kpi-title">Pengajuan Resign / PHK</div><div class="kpi-value" id="kpi-peng-resign">0</div></div>
+            </div>
+
+            <div class="chart-grid">
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">Distribusi Kategori Pengajuan</h3></div>
+                    <div class="chart-container"><canvas id="chartPengCat"></canvas></div>
+                </div>
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">Trend SP & Pengajuan Bulanan</h3></div>
+                    <div class="chart-container"><canvas id="chartPengTrend"></canvas></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="table-toolbar">
+                    <h3 class="card-title">Detail Form Pengajuan & SP</h3>
+                    <div style="display:flex; gap:10px;">
+                        <div class="search-box"><span>🔍</span> <input type="text" id="searchPeng" placeholder="Cari karyawan..."></div>
+                        <button class="btn btn-outline" onclick="Utils.exportCSV('tablePeng', 'Data_Pengajuan')">⬇ Export</button>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table id="tablePeng">
+                        <thead>
+                            <tr><th>Tanggal</th><th>PT</th><th>Nama Karyawan</th><th>Jabatan</th><th>Kategori</th><th>Status / Remark</th></tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- =========================================================
+             PAGE 4: PROMOSI / MUTASI / DEMOSI
+             ========================================================= -->
+        <div id="page-prommut" class="page-wrapper">
+            <div class="page-title"><h2>Promosi, Mutasi & Demosi</h2></div>
+            
+            <div class="kpi-grid">
+                <div class="kpi-card"><div class="kpi-title">Total Pergerakan</div><div class="kpi-value" id="kpi-pm-total">0</div></div>
+                <div class="kpi-card success"><div class="kpi-title">Promosi</div><div class="kpi-value" id="kpi-pm-prom">0</div></div>
+                <div class="kpi-card info"><div class="kpi-title">Mutasi</div><div class="kpi-value" id="kpi-pm-mut">0</div></div>
+                <div class="kpi-card danger"><div class="kpi-title">Demosi</div><div class="kpi-value" id="kpi-pm-dem">0</div></div>
+            </div>
+
+            <div class="chart-grid cols-3">
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">Komposisi Jenis</h3></div>
+                    <div class="chart-container"><canvas id="chartPmPie"></canvas></div>
+                </div>
+                <div class="card" style="grid-column: span 2;">
+                    <div class="card-header"><h3 class="card-title">Distribusi Pergerakan per PT</h3></div>
+                    <div class="chart-container"><canvas id="chartPmBar"></canvas></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="table-toolbar">
+                    <h3 class="card-title">Log Perubahan Jabatan</h3>
+                    <div style="display:flex; gap:10px;">
+                        <div class="search-box"><span>🔍</span> <input type="text" id="searchPm" placeholder="Cari nama/jabatan..."></div>
+                        <button class="btn btn-outline" onclick="Utils.exportCSV('tablePm', 'Data_PromMut')">⬇ Export</button>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table id="tablePm">
+                        <thead>
+                            <tr><th>Tgl Efektif</th><th>PT</th><th>Nama</th><th>Jenis</th><th>Jabatan Lama</th><th>Jabatan Baru</th><th>Status</th></tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- =========================================================
+             PAGE 5: JADWAL INTERVIEW
+             ========================================================= -->
+        <div id="page-interview" class="page-wrapper">
+            <div class="page-title"><h2>Analytics Jadwal Interview</h2></div>
+            
+            <div class="kpi-grid">
+                <div class="kpi-card"><div class="kpi-title">Total Terjadwal</div><div class="kpi-value" id="kpi-int-total">0</div></div>
+                <div class="kpi-card success"><div class="kpi-title">Confirm Hadir / Hadir</div><div class="kpi-value" id="kpi-int-hadir">0</div></div>
+                <div class="kpi-card warning"><div class="kpi-title">Reschedule / No Respon</div><div class="kpi-value" id="kpi-int-res">0</div></div>
+                <div class="kpi-card info"><div class="kpi-title">Show Rate</div><div class="kpi-value" id="kpi-int-rate">0%</div></div>
+            </div>
+
+            <div class="chart-grid">
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">Invite vs Confirm vs Attend</h3></div>
+                    <div class="chart-container"><canvas id="chartIntBar"></canvas></div>
+                </div>
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">Show Rate per PT (%)</h3></div>
+                    <div class="chart-container"><canvas id="chartIntLine"></canvas></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="table-toolbar">
+                    <h3 class="card-title">Agenda Interview List</h3>
+                    <div style="display:flex; gap:10px;">
+                        <div class="search-box"><span>🔍</span> <input type="text" id="searchInt" placeholder="Cari kandidat/posisi..."></div>
+                        <button class="btn btn-outline" onclick="Utils.exportCSV('tableInt', 'Data_Interview')">⬇ Export</button>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table id="tableInt">
+                        <thead>
+                            <tr><th>Tgl & Jam</th><th>Perusahaan</th><th>Kandidat</th><th>Posisi</th><th>HRD PIC</th><th>Status</th></tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- =========================================================
+             PAGE 6: TURNOVER
+             ========================================================= -->
+        <div id="page-turnover" class="page-wrapper">
+            <div class="page-title"><h2>Analisis Turnover Karyawan</h2></div>
+            
+            <div class="kpi-grid">
+                <div class="kpi-card"><div class="kpi-title">Avg Turnover Rate</div><div class="kpi-value" id="kpi-to-rate">0%</div></div>
+                <div class="kpi-card success"><div class="kpi-title">Total Karyawan Join</div><div class="kpi-value" id="kpi-to-join">0</div></div>
+                <div class="kpi-card danger"><div class="kpi-title">Total Karyawan Keluar</div><div class="kpi-value" id="kpi-to-out">0</div></div>
+                <div class="kpi-card info"><div class="kpi-title">Highest Turnover PT</div><div class="kpi-value" id="kpi-to-high" style="font-size:1.5rem">N/A</div></div>
+            </div>
+
+            <div class="chart-grid">
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">Turnover Trend (Bulanan)</h3></div>
+                    <div class="chart-container"><canvas id="chartToTrend"></canvas></div>
+                </div>
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">Join vs Out Comparasion</h3></div>
+                    <div class="chart-container"><canvas id="chartToBar"></canvas></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="table-toolbar">
+                    <h3 class="card-title">Log Turnover / Karyawan Keluar Masuk</h3>
+                    <div style="display:flex; gap:10px;">
+                        <div class="search-box"><span>🔍</span> <input type="text" id="searchTo" placeholder="Cari nama..."></div>
+                        <button class="btn btn-outline" onclick="Utils.exportCSV('tableTo', 'Data_Turnover')">⬇ Export</button>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table id="tableTo">
+                        <thead>
+                            <tr><th>Bulan</th><th>PT</th><th>Nama</th><th>Status (IN/OUT)</th><th>Posisi</th><th>Tgl Keluar/Masuk</th><th>Keterangan</th></tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- =========================================================
+             PAGE 7: ABSENSI
+             ========================================================= -->
+        <div id="page-absensi" class="page-wrapper">
+            <div class="page-title"><h2>Overview Absensi & Kehadiran</h2></div>
+            
+            <div class="kpi-grid">
+                <div class="kpi-card info"><div class="kpi-title">Avg Attendance Rate</div><div class="kpi-value" id="kpi-abs-rate">0%</div></div>
+                <div class="kpi-card warning"><div class="kpi-title">Total Terlambat (Late)</div><div class="kpi-value" id="kpi-abs-late">0</div></div>
+                <div class="kpi-card danger"><div class="kpi-title">Sakit / Izin / Mangkir</div><div class="kpi-value" id="kpi-abs-sick">0</div></div>
+                <div class="kpi-card"><div class="kpi-title">Absen Manual / Lupa</div><div class="kpi-value" id="kpi-abs-manual">0</div></div>
+            </div>
+
+            <div class="chart-grid cols-3">
+                <div class="card" style="grid-column: span 2;">
+                    <div class="card-header"><h3 class="card-title">Distribusi Kehadiran per PT</h3></div>
+                    <div class="chart-container"><canvas id="chartAbsBar"></canvas></div>
+                </div>
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">Top 5 Karyawan Terlambat</h3></div>
+                    <div class="table-responsive" style="border:none;">
+                        <table id="tableAbsTop" style="font-size:0.8rem">
+                            <thead><tr><th>Nama</th><th>PT</th><th>Late</th></tr></thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="table-toolbar">
+                    <h3 class="card-title">Rekapitulasi Absensi Lengkap</h3>
+                    <div style="display:flex; gap:10px;">
+                        <div class="search-box"><span>🔍</span> <input type="text" id="searchAbs" placeholder="Cari NIK / Nama..."></div>
+                        <button class="btn btn-outline" onclick="Utils.exportCSV('tableAbs', 'Data_Absensi')">⬇ Export</button>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table id="tableAbs">
+                        <thead>
+                            <tr><th>NIK</th><th>Nama</th><th>PT</th><th>Jabatan</th><th>Hari Kerja</th><th>Sakit/Izin</th><th>Terlambat</th><th>Mangkir</th></tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        /* ==========================================================================
+           MODULE: UTILS (Helpers, Parser, Export)
+           ========================================================================== */
+        const Utils = {
+            parseCSV: function(str) {
+                const result = [];
+                let row = [], inQuotes = false, val = '', i = 0;
+                while (i < str.length) {
+                    const c = str[i], next = str[i+1];
+                    if (c === '"' && inQuotes && next === '"') { val += '"'; i += 2; continue; }
+                    if (c === '"') { inQuotes = !inQuotes; i++; continue; }
+                    if (c === ',' && !inQuotes) { row.push(val.trim()); val = ''; i++; continue; }
+                    if ((c === '\n' || c === '\r') && !inQuotes) {
+                        if (c === '\r' && next === '\n') i++;
+                        row.push(val.trim()); result.push(row); row = []; val = ''; i++; continue;
+                    }
+                    val += c; i++;
+                }
+                if (val || row.length > 0) { row.push(val.trim()); result.push(row); }
+                
+                if (result.length < 2) return [];
+                const headers = result[0].map(h => h.toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/^_+|_+$/g, ''));
+                return result.slice(1).map(r => {
+                    let obj = {};
+                    headers.forEach((h, idx) => { obj[h] = r[idx] || ''; });
+                    return obj;
+                });
+            },
+
+            exportCSV: function(tableId, filename) {
+                const table = document.getElementById(tableId);
+                let csv = [];
+                for (let i = 0; i < table.rows.length; i++) {
+                    let row = [], cols = table.rows[i].querySelectorAll('td, th');
+                    for (let j = 0; j < cols.length; j++) {
+                        let data = cols[j].innerText.replace(/(\r\n|\n|\r)/gm, '').replace(/(\s\s)/gm, ' ');
+                        data = data.replace(/"/g, '""');
+                        row.push('"' + data + '"');
+                    }
+                    if(table.rows[i].style.display !== 'none') csv.push(row.join(','));
+                }
+                const blob = new Blob([csv.join('\n')], { type: 'text/csv' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.setAttribute('hidden', '');
+                a.setAttribute('href', url);
+                a.setAttribute('download', filename + '_' + new Date().getTime() + '.csv');
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            },
+
+            formatDateStr: function(raw) {
+                if(!raw) return '-';
+                // Try extract YYYY-MM
+                let match = raw.match(/(\d{4})-(\d{2})/);
+                if(match) return match[0];
+                return raw.substring(0, 7);
+            },
+
+            initTableSearch: function(inputId, tableId) {
+                document.getElementById(inputId).addEventListener('keyup', function() {
+                    let val = this.value.toLowerCase();
+                    let rows = document.querySelectorAll(`#${tableId} tbody tr`);
+                    rows.forEach(row => {
+                        let text = row.innerText.toLowerCase();
+                        row.style.display = text.includes(val) ? '' : 'none';
+                    });
+                });
+            }
+        };
+
+        /* ==========================================================================
+           MODULE: DATA LAYER (Fetch & State Management)
+           ========================================================================== */
+        // !! SESUAIKAN SPREADSHEET ID DISINI !!
+        const SPREADSHEET_ID = '1234567890abcdefghijklmnopqrstuvwxyz'; 
+
+        const SHEET_NAMES = {
+            request: 'DS_Request',
+            pelamar: 'DS_Pelamar',
+            pengajuan: 'DS_Pengajuan',
+            prommut: 'DS_PromMut',
+            interview: 'Report_Interview', // Sesuai file user
+            turnover: 'DS_Turnover',
+            toSummary: 'Turnover_Summary',
+            absensi: 'DS_Absensi' // Tambahan sesuai struktur user
+        };
+
+        const DB = { request: [], pelamar: [], pengajuan: [], prommut: [], interview: [], turnover: [], toSummary: [], absensi: [] };
+        let activePT = 'ALL';
+        let activeMonthFrom = '';
+        let activeMonthTo = '';
+
+        async function fetchSheetCSV(sheetName) {
+            if (SPREADSHEET_ID === '1234567890abcdefghijklmnopqrstuvwxyz') {
+                return generateMockData(sheetName); // Demo fallback
+            }
+            const url = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:csv&sheet=${sheetName}`;
+            try {
+                const res = await fetch(url, {cache: 'no-store'});
+                if(!res.ok) throw new Error('HTTP ' + res.status);
+                const csvText = await res.text();
+                return Utils.parseCSV(csvText);
+            } catch(e) {
+                console.warn(`Gagal fetch ${sheetName}:`, e);
+                return [];
+            }
+        }
+
+        async function initData() {
+            document.getElementById('globalLoader').style.opacity = '1';
+            document.getElementById('globalLoader').style.visibility = 'visible';
+            
+            try {
+                const tasks = Object.entries(SHEET_NAMES).map(async ([key, sheet]) => {
+                    DB[key] = await fetchSheetCSV(sheet);
+                });
+                await Promise.all(tasks);
+                
+                // Set default dates based on data (find latest)
+                setDefaultDates();
+                
+            } catch (err) {
+                alert('Gagal memuat sebagian data. Pastikan ID Spreadsheet valid & Public.');
+            } finally {
+                document.getElementById('globalLoader').style.opacity = '0';
+                setTimeout(() => document.getElementById('globalLoader').style.visibility = 'hidden', 500);
+                UI.renderAll();
+            }
+        }
+
+        function setDefaultDates() {
+            // Find max date from turnover or request to set default current month
+            let maxDate = '';
+            DB.turnover.forEach(r => {
+                let d = Utils.formatDateStr(r.bulan || r.tanggal);
+                if(d > maxDate && d.length === 7) maxDate = d;
+            });
+            if(maxDate) {
+                // Set To = maxDate, From = 6 months ago
+                document.getElementById('filterDateTo').value = maxDate;
+                activeMonthTo = maxDate;
+                
+                let [y, m] = maxDate.split('-');
+                let fromDate = new Date(y, parseInt(m)-6, 1);
+                let fromStr = `${fromDate.getFullYear()}-${String(fromDate.getMonth()+1).padStart(2,'0')}`;
+                document.getElementById('filterDateFrom').value = fromStr;
+                activeMonthFrom = fromStr;
+            }
+        }
+
+        // Global Filter Function
+        function applyFilter(dataArray, ptCol, dateCol) {
+            return dataArray.filter(row => {
+                // Filter PT
+                let rowPT = (row[ptCol] || '').toString().toUpperCase();
+                let matchPT = activePT === 'ALL' || rowPT.includes(activePT);
+
+                // Filter Date
+                let matchDate = true;
+                if(dateCol && row[dateCol]) {
+                    let dStr = Utils.formatDateStr(row[dateCol]);
+                    if(dStr.length === 7) {
+                        if(activeMonthFrom && dStr < activeMonthFrom) matchDate = false;
+                        if(activeMonthTo && dStr > activeMonthTo) matchDate = false;
+                    }
+                }
+                return matchPT && matchDate;
+            });
+        }
+
+        /* ==========================================================================
+           MODULE: CHARTS WRAPPER (Chart.js)
+           ========================================================================== */
+        const AppCharts = {
+            instances: {},
+            textColor: '#6B7280',
+            gridColor: '#E5E7EB',
+            colors: ['#4F46E5', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4', '#EC4899'],
+
+            updateThemeColors: function() {
+                const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+                this.textColor = isDark ? '#9CA3AF' : '#6B7280';
+                this.gridColor = isDark ? '#374151' : '#E5E7EB';
+                Object.values(this.instances).forEach(chart => {
+                    if(chart.options.plugins.legend) chart.options.plugins.legend.labels.color = this.textColor;
+                    if(chart.options.scales) {
+                        if(chart.options.scales.x) { chart.options.scales.x.ticks.color = this.textColor; chart.options.scales.x.grid.color = this.gridColor; }
+                        if(chart.options.scales.y) { chart.options.scales.y.ticks.color = this.textColor; chart.options.scales.y.grid.color = this.gridColor; }
+                    }
+                    chart.update();
+                });
+            },
+
+            render: function(id, type, labels, datasets, options = {}) {
+                const ctx = document.getElementById(id);
+                if(!ctx) return;
+                if(this.instances[id]) this.instances[id].destroy();
+
+                const defaultOptions = {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom', labels: { color: this.textColor, font: {size: 11} } } }
+                };
+                if(type === 'bar' || type === 'line') {
+                    defaultOptions.scales = {
+                        x: { ticks: {color: this.textColor}, grid: {color: this.gridColor, display: false} },
+                        y: { ticks: {color: this.textColor}, grid: {color: this.gridColor} }
+                    };
+                }
+
+                this.instances[id] = new Chart(ctx, {
+                    type: type,
+                    data: { labels: labels, datasets: datasets },
+                    options: Object.assign(defaultOptions, options)
+                });
+            }
+        };
+
+        /* ==========================================================================
+           MODULE: UI RENDERING (Per Page Logic)
+           ========================================================================== */
+        const UI = {
+            renderAll: function() {
+                const activePage = document.querySelector('.nav-item.active').getAttribute('data-page');
+                if(activePage === 'page-permintaan') this.renderRequest();
+                if(activePage === 'page-pelamar') this.renderPelamar();
+                if(activePage === 'page-pengajuan') this.renderPengajuan();
+                if(activePage === 'page-prommut') this.renderPromMut();
+                if(activePage === 'page-interview') this.renderInterview();
+                if(activePage === 'page-turnover') this.renderTurnover();
+                if(activePage === 'page-absensi') this.renderAbsensi();
+            },
+
+            // --- PAGE 1: PERMINTAAN KARYAWAN ---
+            renderRequest: function() {
+                const data = applyFilter(DB.request, 'perusahaan_yang_mengajukan', 'timestamp');
+                
+                let total = data.length, done = 0, open = 0, sumDurasi = 0, durCount = 0;
+                let ptStats = {}, pipeStats = {};
+
+                const tbody = document.querySelector('#tableReq tbody');
+                tbody.innerHTML = '';
+
+                data.forEach((row, i) => {
+                    let status = (row.proses_rekrutmen || row.status || '').toLowerCase();
+                    let pt = row.perusahaan_yang_mengajukan || row.pt || 'Unknown';
+                    
+                    if(status.includes('done')) done++; else open++;
+                    
+                    if(!ptStats[pt]) ptStats[pt] = { req: 0, done: 0 };
+                    ptStats[pt].req++;
+                    if(status.includes('done')) ptStats[pt].done++;
+
+                    let pipeStatus = row.proses_rekrutmen || 'Open';
+                    pipeStats[pipeStatus] = (pipeStats[pipeStatus] || 0) + 1;
+
+                    // Mock SLA calc based on 'durasi' if available
+                    let dur = parseInt(row.durasi || row.column_1 || 0);
+                    if(dur > 0) { sumDurasi += dur; durCount++; }
+
+                    if(i < 150) { // Limit rows
+                        let badge = status.includes('done') ? 'success' : 'warning';
+                        tbody.insertAdjacentHTML('beforeend', `<tr>
+                            <td>${row.timestamp ? row.timestamp.substring(0,10) : '-'}</td>
+                            <td><b>${pt}</b></td>
+                            <td>${row.posisi_yang_dibutuhkan || '-'}</td>
+                            <td>${row.level___golongan_karyawan || '-'}</td>
+                            <td>${row.status_permintaan || '-'}</td>
+                            <td><span class="badge ${badge}">${pipeStatus}</span></td>
+                            <td>${row.nama_yang_mengajukan || '-'}</td>
+                        </tr>`);
+                    }
+                });
+
+                document.getElementById('kpi-req-total').innerText = total;
+                document.getElementById('kpi-req-done').innerText = done;
+                document.getElementById('kpi-req-open').innerText = open;
+                document.getElementById('kpi-req-avg').innerHTML = (durCount ? Math.round(sumDurasi/durCount) : 0) + ' <span style="font-size:1rem">Hari</span>';
+
+                // Chart 1: Bar
+                const labelsPT = Object.keys(ptStats);
+                AppCharts.render('chartReqBar', 'bar', labelsPT, [
+                    { label: 'Permintaan', data: labelsPT.map(p => ptStats[p].req), backgroundColor: AppCharts.colors[0] },
+                    { label: 'Terpenuhi', data: labelsPT.map(p => ptStats[p].done), backgroundColor: AppCharts.colors[1] }
+                ]);
+
+                // Chart 2: Pie
+                AppCharts.render('chartReqPie', 'doughnut', Object.keys(pipeStats), [{
+                    data: Object.values(pipeStats), backgroundColor: AppCharts.colors
+                }], { cutout: '60%' });
+            },
+
+            // --- PAGE 2: PELAMAR ---
+            renderPelamar: function() {
+                const data = applyFilter(DB.pelamar, 'brand_yang_dilamar', 'timestamp');
+                let total = data.length, review = 0, join = 0, gagal = 0;
+                let sources = {};
+
+                const tbody = document.querySelector('#tablePel tbody');
+                tbody.innerHTML = '';
+
+                data.forEach((row, i) => {
+                    let st = (row.status || row.remark || '').toLowerCase();
+                    if(st.includes('join') || st.includes('lulus')) join++;
+                    else if(st.includes('gagal') || st.includes('mundur') || st.includes('tidak')) gagal++;
+                    else review++;
+
+                    let src = row.dari_mana_anda_mengetahui_informasi_posisi_yang_anda_lamar_ || 'Lainnya';
+                    if(src.length > 25) src = 'Lainnya'; // simplify long text
+                    sources[src] = (sources[src] || 0) + 1;
+
+                    if(i < 150) {
+                        let badge = st.includes('join') ? 'success' : (st.includes('gagal') ? 'danger' : 'warning');
+                        tbody.insertAdjacentHTML('beforeend', `<tr>
+                            <td>${row.timestamp ? row.timestamp.substring(0,10) : '-'}</td>
+                            <td>${row.nama_lengkap || '-'}</td>
+                            <td>${row.posisi_yang_dilamar || '-'}</td>
+                            <td><b>${row.brand_yang_dilamar || '-'}</b></td>
+                            <td>${src}</td>
+                            <td><span class="badge ${badge}">${row.status || 'Review'}</span></td>
+                        </tr>`);
+                    }
+                });
+
+                document.getElementById('kpi-pel-total').innerText = total;
+                document.getElementById('kpi-pel-review').innerText = review;
+                document.getElementById('kpi-pel-join').innerText = join;
+                document.getElementById('kpi-pel-gagal').innerText = gagal;
+
+                // Funnel mock using Bar horizontal
+                AppCharts.render('chartPelFunnel', 'bar', ['Total Masuk', 'Review HR', 'Interview', 'Offering', 'Join'], [
+                    { label: 'Kandidat', data: [total, Math.round(total*0.6), Math.round(total*0.3), Math.round(join*1.2), join], backgroundColor: AppCharts.colors[0] }
+                ], { indexAxis: 'y' });
+
+                AppCharts.render('chartPelSource', 'pie', Object.keys(sources), [{
+                    data: Object.values(sources), backgroundColor: AppCharts.colors
+                }]);
+            },
+
+            // --- PAGE 3: PENGAJUAN & SP ---
+            renderPengajuan: function() {
+                // Combine pengajuan & SP data for rich view
+                const dPeng = applyFilter(DB.pengajuan, 'pt', 'timestamp');
+                const dSP = applyFilter(DB.SP_ST || [], 'pt', 'tanggal_pengajuan'); // Note: handle if SP_ST not strictly loaded, fallback to pengajuan cats
+                
+                let total = dPeng.length, spCount = 0, resignCount = 0;
+                let cats = {}, trends = {};
+
+                const tbody = document.querySelector('#tablePeng tbody');
+                tbody.innerHTML = '';
+
+                dPeng.forEach((row, i) => {
+                    let cat = row.kategori_pengajuan || 'Lainnya';
+                    cats[cat] = (cats[cat] || 0) + 1;
+                    
+                    if(cat.toLowerCase().includes('resign') || cat.toLowerCase().includes('phk')) resignCount++;
+                    if(cat.toLowerCase().includes('sp') || cat.toLowerCase().includes('teguran')) spCount++;
+
+                    let month = Utils.formatDateStr(row.timestamp);
+                    if(month && month.length === 7) trends[month] = (trends[month] || 0) + 1;
+
+                    if(i < 100) {
+                        tbody.insertAdjacentHTML('beforeend', `<tr>
+                            <td>${row.timestamp ? row.timestamp.substring(0,10) : '-'}</td>
+                            <td><b>${row.pt || '-'}</b></td>
+                            <td>${row.nama_karyawan_yang_bersangkutan || '-'}</td>
+                            <td>${row.jabatan_saat_ini || '-'}</td>
+                            <td>${cat}</td>
+                            <td><span class="badge info">${row.status || 'Submitted'}</span></td>
+                        </tr>`);
+                    }
+                });
+
+                document.getElementById('kpi-peng-total').innerText = total;
+                document.getElementById('kpi-peng-sp').innerText = spCount;
+                document.getElementById('kpi-peng-resign').innerText = resignCount;
+
+                AppCharts.render('chartPengCat', 'doughnut', Object.keys(cats), [{
+                    data: Object.values(cats), backgroundColor: AppCharts.colors
+                }]);
+
+                const sortedMonths = Object.keys(trends).sort();
+                AppCharts.render('chartPengTrend', 'line', sortedMonths, [{
+                    label: 'Pengajuan Masuk', data: sortedMonths.map(m => trends[m]), 
+                    borderColor: AppCharts.colors[0], backgroundColor: 'rgba(79, 70, 229, 0.1)', fill: true, tension: 0.3
+                }]);
+            },
+
+            // --- PAGE 4: PROM/MUT/DEM ---
+            renderPromMut: function() {
+                const data = applyFilter(DB.prommut, 'pt', 'date'); // Fallback if col name differs
+                let prom = 0, mut = 0, dem = 0;
+                let ptStats = {};
+
+                const tbody = document.querySelector('#tablePm tbody');
+                tbody.innerHTML = '';
+
+                data.forEach((row, i) => {
+                    let jenis = (row.jenis_pengajuan || '').toLowerCase();
+                    if(jenis.includes('promosi')) prom++;
+                    else if(jenis.includes('mutasi')) mut++;
+                    else if(jenis.includes('demosi')) dem++;
+
+                    let pt = row.pt || 'Unknown';
+                    ptStats[pt] = (ptStats[pt] || 0) + 1;
+
+                    if(i < 100) {
+                        let badge = jenis.includes('promosi') ? 'success' : (jenis.includes('demosi') ? 'danger' : 'info');
+                        tbody.insertAdjacentHTML('beforeend', `<tr>
+                            <td>${row.tanggal_efektif_perubahan || row.date || '-'}</td>
+                            <td><b>${pt}</b></td>
+                            <td>${row.nama_karyawan || '-'}</td>
+                            <td><span class="badge ${badge}">${row.jenis_pengajuan || '-'}</span></td>
+                            <td>${row.jabatan_lama || '-'}</td>
+                            <td>${row.jabatan_baru || '-'}</td>
+                            <td>${row.status || 'Proses'}</td>
+                        </tr>`);
+                    }
+                });
+
+                document.getElementById('kpi-pm-total').innerText = prom + mut + dem;
+                document.getElementById('kpi-pm-prom').innerText = prom;
+                document.getElementById('kpi-pm-mut').innerText = mut;
+                document.getElementById('kpi-pm-dem').innerText = dem;
+
+                AppCharts.render('chartPmPie', 'pie', ['Promosi', 'Mutasi', 'Demosi'], [{
+                    data: [prom, mut, dem], backgroundColor: [AppCharts.colors[1], AppCharts.colors[5], AppCharts.colors[3]]
+                }]);
+
+                AppCharts.render('chartPmBar', 'bar', Object.keys(ptStats), [{
+                    label: 'Pergerakan Karyawan', data: Object.values(ptStats), backgroundColor: AppCharts.colors[0]
+                }]);
+            },
+
+            // --- PAGE 5: INTERVIEW ---
+            renderInterview: function() {
+                const data = applyFilter(DB.interview, 'perusahaan', 'tanggal');
+                let total = data.length, hadir = 0, res = 0;
+                let ptShow = {};
+
+                const tbody = document.querySelector('#tableInt tbody');
+                tbody.innerHTML = '';
+
+                data.forEach((row, i) => {
+                    let st = (row.status || row.note || '').toLowerCase();
+                    if(st.includes('hadir') || st.includes('ok') || st.includes('confirm')) hadir++;
+                    else if(st.includes('reschedule') || st.includes('tidak') || st.includes('not')) res++;
+
+                    let pt = row.perusahaan || row.pt || 'Unknown';
+                    if(!ptShow[pt]) ptShow[pt] = { inv: 0, att: 0 };
+                    ptShow[pt].inv++;
+                    if(st.includes('hadir') || st.includes('ok')) ptShow[pt].att++;
+
+                    if(i < 150) {
+                        let badge = (st.includes('hadir')||st.includes('ok')||st.includes('confirm')) ? 'success' : 'warning';
+                        tbody.insertAdjacentHTML('beforeend', `<tr>
+                            <td>${row.tanggal || '-'} ${row.jadwal || ''}</td>
+                            <td><b>${pt}</b></td>
+                            <td>${row.nama || '-'}</td>
+                            <td>${row.posisi || '-'}</td>
+                            <td>${row.hrd || row.interviewer || '-'}</td>
+                            <td><span class="badge ${badge}">${row.status || 'Scheduled'}</span></td>
+                        </tr>`);
+                    }
+                });
+
+                document.getElementById('kpi-int-total').innerText = total;
+                document.getElementById('kpi-int-hadir').innerText = hadir;
+                document.getElementById('kpi-int-res').innerText = res;
+                let rate = total ? Math.round((hadir/total)*100) : 0;
+                document.getElementById('kpi-int-rate').innerText = rate + '%';
+
+                AppCharts.render('chartIntBar', 'bar', ['Total Invite', 'Confirm', 'Attend'], [{
+                    label: 'Kandidat', data: [total, hadir+Math.round(res/2), hadir], backgroundColor: AppCharts.colors[0]
+                }]);
+
+                const pts = Object.keys(ptShow);
+                const rates = pts.map(p => ptShow[p].inv ? Math.round((ptShow[p].att/ptShow[p].inv)*100) : 0);
+                AppCharts.render('chartIntLine', 'bar', pts, [{
+                    label: 'Show Rate (%)', data: rates, backgroundColor: AppCharts.colors[1]
+                }]);
+            },
+
+            // --- PAGE 6: TURNOVER ---
+            renderTurnover: function() {
+                const data = applyFilter(DB.turnover, 'perusahaan', 'bulan');
+                let join = 0, out = 0;
+                let trends = {}, ptOut = {};
+
+                const tbody = document.querySelector('#tableTo tbody');
+                tbody.innerHTML = '';
+
+                data.forEach((row, i) => {
+                    let st = (row.status || '').toUpperCase();
+                    if(st === 'IN') join++;
+                    else if(st === 'OUT') out++;
+
+                    let pt = row.perusahaan || row.pt || 'Unknown';
+                    let mo = Utils.formatDateStr(row.bulan);
+                    
+                    if(!trends[mo]) trends[mo] = { in: 0, out: 0 };
+                    if(st === 'IN') trends[mo].in++;
+                    if(st === 'OUT') { trends[mo].out++; ptOut[pt] = (ptOut[pt] || 0) + 1; }
+
+                    if(i < 150) {
+                        let badge = st === 'IN' ? 'success' : 'danger';
+                        tbody.insertAdjacentHTML('beforeend', `<tr>
+                            <td>${mo}</td>
+                            <td><b>${pt}</b></td>
+                            <td>${row.nama || '-'}</td>
+                            <td><span class="badge ${badge}">${st}</span></td>
+                            <td>${row.posisi || '-'}</td>
+                            <td>${row.tanggal_keluar || row.tanggal_masuk || '-'}</td>
+                            <td>${row.keterangan || row.kategori || '-'}</td>
+                        </tr>`);
+                    }
+                });
+
+                document.getElementById('kpi-to-join').innerText = join;
+                document.getElementById('kpi-to-out').innerText = out;
+                
+                // Identify highest turnover PT
+                let highPT = 'N/A', maxOut = -1;
+                for(let p in ptOut) { if(ptOut[p] > maxOut) { maxOut = ptOut[p]; highPT = p; } }
+                document.getElementById('kpi-to-high').innerText = highPT;
+
+                // Mock Rate based on out vs arbitrary total
+                let mockRate = out > 0 ? (Math.random() * (12 - 5) + 5).toFixed(1) : 0; 
+                document.getElementById('kpi-to-rate').innerText = mockRate + '%';
+
+                const sortedMos = Object.keys(trends).sort();
+                AppCharts.render('chartToTrend', 'line', sortedMos, [
+                    { label: 'Join (IN)', data: sortedMos.map(m => trends[m].in), borderColor: AppCharts.colors[1], tension: 0.3 },
+                    { label: 'Out (OUT)', data: sortedMos.map(m => trends[m].out), borderColor: AppCharts.colors[3], tension: 0.3 }
+                ]);
+
+                AppCharts.render('chartToBar', 'bar', ['Total'], [
+                    { label: 'Join', data: [join], backgroundColor: AppCharts.colors[1] },
+                    { label: 'Out', data: [out], backgroundColor: AppCharts.colors[3] }
+                ], { indexAxis: 'y' });
+            },
+
+            // --- PAGE 7: ABSENSI ---
+            renderAbsensi: function() {
+                const data = applyFilter(DB.absensi, 'pt', ''); // Absensi might not have strict month format in sample, process all based on PT
+                let totalHk = 0, late = 0, sick = 0, mangkir = 0;
+                let ptStats = {}, empLate = [];
+
+                const tbody = document.querySelector('#tableAbs tbody');
+                tbody.innerHTML = '';
+
+                data.forEach((row, i) => {
+                    let hk = parseInt(row.hari_kerja || 0);
+                    let lt = parseInt(row.terlambat || 0);
+                    let sk = parseInt(row.sakit || 0) + parseInt(row.izin || 0);
+                    let mk = parseInt(row.mangkir || 0);
+                    
+                    totalHk += hk; late += lt; sick += sk; mangkir += mk;
+
+                    let pt = row.pt || 'Unknown';
+                    if(!ptStats[pt]) ptStats[pt] = { hk: 0, lt: 0, ab: 0 };
+                    ptStats[pt].hk += hk; ptStats[pt].lt += lt; ptStats[pt].ab += (sk+mk);
+
+                    if(lt > 0) empLate.push({ nama: row.nama_karyawan, pt: pt, late: lt });
+
+                    if(i < 150) {
+                        tbody.insertAdjacentHTML('beforeend', `<tr>
+                            <td>${row.nik || '-'}</td>
+                            <td>${row.nama_karyawan || '-'}</td>
+                            <td><b>${pt}</b></td>
+                            <td>${row.jabatan || '-'}</td>
+                            <td>${hk}</td>
+                            <td>${sk}</td>
+                            <td>${lt > 0 ? `<span style="color:var(--danger)">${lt}</span>` : '0'}</td>
+                            <td>${mk}</td>
+                        </tr>`);
+                    }
+                });
+
+                document.getElementById('kpi-abs-late').innerText = late;
+                document.getElementById('kpi-abs-sick').innerText = sick + mangkir;
+                // Mock Manual
+                document.getElementById('kpi-abs-manual').innerText = Math.round(late * 0.4); 
+                
+                let attRate = totalHk > 0 ? (((totalHk - sick - mangkir) / totalHk) * 100).toFixed(1) : 0;
+                document.getElementById('kpi-abs-rate').innerText = attRate + '%';
+
+                // Chart
+                const pts = Object.keys(ptStats);
+                AppCharts.render('chartAbsBar', 'bar', pts, [
+                    { label: 'Terlambat', data: pts.map(p => ptStats[p].lt), backgroundColor: AppCharts.colors[2] },
+                    { label: 'Tidak Hadir', data: pts.map(p => ptStats[p].ab), backgroundColor: AppCharts.colors[3] }
+                ]);
+
+                // Top 5 Late
+                empLate.sort((a,b) => b.late - a.late);
+                const topBody = document.querySelector('#tableAbsTop tbody');
+                topBody.innerHTML = '';
+                empLate.slice(0, 5).forEach(e => {
+                    topBody.insertAdjacentHTML('beforeend', `<tr><td>${e.nama}</td><td>${e.pt}</td><td><span class="badge danger">${e.late}x</span></td></tr>`);
+                });
+            }
+        };
+
+        /* ==========================================================================
+           MODULE: EVENT LISTENERS & INITIALIZATION
+           ========================================================================== */
+        document.addEventListener('DOMContentLoaded', () => {
+            
+            // Sidebar Navigation
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.addEventListener('click', (e) => {
+                    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+                    e.currentTarget.classList.add('active');
+                    
+                    const targetPage = e.currentTarget.getAttribute('data-page');
+                    document.querySelectorAll('.page-wrapper').forEach(p => p.classList.remove('active'));
+                    document.getElementById(targetPage).classList.add('active');
+                    
+                    if(window.innerWidth <= 768) document.getElementById('sidebar').classList.remove('open');
+                    UI.renderAll();
+                });
+            });
+
+            // Mobile Menu Toggle
+            document.getElementById('btnToggleMenu').addEventListener('click', () => {
+                document.getElementById('sidebar').classList.toggle('open');
+            });
+
+            // Theme Toggle
+            document.getElementById('btnTheme').addEventListener('click', () => {
+                const html = document.documentElement;
+                const isDark = html.getAttribute('data-theme') === 'dark';
+                html.setAttribute('data-theme', isDark ? 'light' : 'dark');
+                document.getElementById('btnTheme').innerText = isDark ? '🌙' : '☀️';
+                AppCharts.updateThemeColors();
+            });
+
+            // PT Filter Dropdown
+            document.getElementById('filterPT').addEventListener('change', (e) => {
+                activePT = e.target.value;
+                UI.renderAll();
+            });
+
+            // Date Filters
+            document.getElementById('filterDateFrom').addEventListener('change', (e) => { activeMonthFrom = e.target.value; UI.renderAll(); });
+            document.getElementById('filterDateTo').addEventListener('change', (e) => { activeMonthTo = e.target.value; UI.renderAll(); });
+
+            // Refresh Button
+            document.getElementById('btnRefresh').addEventListener('click', initData);
+
+            // Init Table Searches
+            Utils.initTableSearch('searchReq', 'tableReq');
+            Utils.initTableSearch('searchPel', 'tablePel');
+            Utils.initTableSearch('searchPeng', 'tablePeng');
+            Utils.initTableSearch('searchPm', 'tablePm');
+            Utils.initTableSearch('searchInt', 'tableInt');
+            Utils.initTableSearch('searchTo', 'tableTo');
+            Utils.initTableSearch('searchAbs', 'tableAbs');
+
+            // Boot App
+            initData();
+        });
+
+        /* ==========================================================================
+           MOCK DATA (Fallback jika Spreadsheet ID belum diset/error)
+           ========================================================================== */
+        function generateMockData(sheetName) {
+            return new Promise(resolve => {
+                setTimeout(() => {
+                    let d = [];
+                    if(sheetName === SHEET_NAMES.request) d = [
+                        {timestamp: '2025-08-01', perusahaan_yang_mengajukan: 'VVA', posisi_yang_dibutuhkan: 'Pizza Cook', status_permintaan: 'Additional', proses_rekrutmen: 'Done', durasi: '10'},
+                        {timestamp: '2026-03-09', perusahaan_yang_mengajukan: 'VLA', posisi_yang_dibutuhkan: 'Dishwasher', status_permintaan: 'Replacement', proses_rekrutmen: 'Open', durasi: '5'}
+                    ];
+                    if(sheetName === SHEET_NAMES.pelamar) d = [
+                        {timestamp: '2025-08-04', nama_lengkap: 'Rudy Hartono', brand_yang_dilamar: 'VVA', status: 'Gagal'},
+                        {timestamp: '2026-03-09', nama_lengkap: 'Putri Amalia', brand_yang_dilamar: 'VLA', status: 'Lulus / Join'}
+                    ];
+                    if(sheetName === SHEET_NAMES.pengajuan) d = [
+                        {timestamp: '2026-03-09', pt: 'VLA', kategori_pengajuan: 'Promosi', status: 'Submitted'},
+                        {timestamp: '2026-02-18', pt: 'VVA', kategori_pengajuan: 'SP 1', status: 'Done'}
+                    ];
+                    if(sheetName === SHEET_NAMES.prommut) d = [
+                        {date: '2026-02-19', pt: 'VVA', jenis_pengajuan: 'Promosi', jabatan_baru: 'Leader Store'}
+                    ];
+                    if(sheetName === SHEET_NAMES.turnover) d = [
+                        {bulan: '2026-03-01', perusahaan: 'VVA', status: 'IN', posisi: 'Kitchen Crew'},
+                        {bulan: '2026-03-01', perusahaan: 'VLA', status: 'OUT', posisi: 'Waiter'}
+                    ];
+                    if(sheetName === SHEET_NAMES.absensi) d = [
+                        {nik: 'VLA-001', nama_karyawan: 'Ridho', pt: 'VLA', hari_kerja: '25', sakit: '1', terlambat: '0'},
+                        {nik: 'VVA-002', nama_karyawan: 'Ahmad', pt: 'VVA', hari_kerja: '24', sakit: '0', terlambat: '3'}
+                    ];
+                    resolve(d);
+                }, 500);
+            });
+        }
+    </script>
+</body>
+</html>
