@@ -269,7 +269,7 @@
 
             <div class="chart-grid cols-3">
                 <div class="card" style="grid-column: span 2;">
-                    <div class="card-header"><h3 class="card-title">Permintaan vs Terpenuhi per PT</h3></div>
+                    <div class="card-header"><h3 class="card-title" id="titleReqChart">Permintaan vs Terpenuhi per Bulan</h3></div>
                     <div class="chart-container"><canvas id="chartReqBar"></canvas></div>
                 </div>
                 <div class="card">
@@ -280,7 +280,7 @@
 
             <div class="card">
                 <div class="table-toolbar">
-                    <h3 class="card-title">Daftar Open Request</h3>
+                    <h3 class="card-title">Permintaan Belum Terpenuhi (Open Request)</h3>
                     <div style="display:flex; gap:10px;">
                         <div class="search-box">
                             <span>🔍</span> <input type="text" id="searchReq" placeholder="Cari posisi / PT...">
@@ -615,30 +615,26 @@
                 document.body.removeChild(a);
             },
 
-            // REVISI: Pembaca Tanggal yang Jauh Lebih Kuat
             formatDateStr: function(raw) {
                 if(!raw) return '';
                 raw = String(raw).trim();
                 
-                // 1. Coba pola YYYY-MM-DD atau YYYY-MM (Standar Google Sheets)
                 let match1 = raw.match(/^(\d{4})-(\d{2})/);
                 if(match1) return `${match1[1]}-${match1[2]}`;
 
-                // 2. Coba pola DD/MM/YYYY atau DD-MM-YYYY (Format Indonesia)
                 let match2 = raw.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
                 if(match2) {
                     let d = match2[1], m = match2[2], y = match2[3];
-                    if(parseInt(m) > 12) { m = match2[1]; d = match2[2]; } // Fallback jika format MM/DD/YYYY
+                    if(parseInt(m) > 12) { m = match2[1]; d = match2[2]; }
                     return `${y}-${m.padStart(2, '0')}`;
                 }
 
-                // 3. Fallback: JS Date parser (Bisa baca format 01-Aug-2025 dll)
                 let parsed = new Date(raw);
                 if(!isNaN(parsed.getTime())) {
                     return `${parsed.getFullYear()}-${String(parsed.getMonth()+1).padStart(2, '0')}`;
                 }
                 
-                return ''; // Return kosong agar tidak merusak filter
+                return ''; 
             },
 
             initTableSearch: function(inputId, tableId) {
@@ -656,7 +652,6 @@
         /* ==========================================================================
            MODULE: DATA LAYER (Fetch & State Management)
            ========================================================================== */
-        // SPREADSHEET ID ANDA
         const SPREADSHEET_ID = '151Fg_9eyMHRUAURz2SO5yzxZRz-sIuieUQW9pOBSJM0'; 
 
         const SHEET_NAMES = {
@@ -668,7 +663,7 @@
             turnover: 'DS_Turnover',
             toSummary: 'Turnover_Summary',
             absensi: 'DS_Absensi',
-            sp_st: 'SP_ST' // DITAMBAHKAN: Untuk memuat data Surat Peringatan
+            sp_st: 'SP_ST'
         };
 
         const DB = { request: [], pelamar: [], pengajuan: [], prommut: [], interview: [], turnover: [], toSummary: [], absensi: [], sp_st: [] };
@@ -699,7 +694,6 @@
                 });
                 await Promise.all(tasks);
                 
-                // REVISI: Mengosongkan input bulan secara default agar SEMUA data terbuka
                 document.getElementById('filterDateFrom').value = '';
                 document.getElementById('filterDateTo').value = '';
                 
@@ -712,20 +706,17 @@
             }
         }
 
-        // REVISI: Fungsi Filter Global yang Jauh Lebih Kuat
         function applyFilter(dataArray, ptCols, dateCols) {
             if(!Array.isArray(ptCols)) ptCols = [ptCols];
             if(!Array.isArray(dateCols)) dateCols = [dateCols];
 
             return dataArray.filter(row => {
-                // Filter PT (Cek banyak kemungkinan nama kolom dan bersihkan spasi)
                 let rowPT = '';
                 for(let col of ptCols) {
                     if(row[col]) { rowPT = row[col].toString().trim().toUpperCase(); break; }
                 }
                 let matchPT = activePT === 'ALL' || rowPT.includes(activePT);
 
-                // Filter Date
                 let matchDate = true;
                 let rawDate = '';
                 for(let col of dateCols) {
@@ -738,16 +729,115 @@
                         if(activeMonthFrom && dStr < activeMonthFrom) matchDate = false;
                         if(activeMonthTo && dStr > activeMonthTo) matchDate = false;
                     } else {
-                        // Jika format tanggal gagal diparse & filter sedang aktif
                         if(activeMonthFrom || activeMonthTo) matchDate = false;
                     }
                 } else if ((activeMonthFrom || activeMonthTo) && dateCols.length > 0) {
-                    // Jika data ini tidak punya kolom tanggal tapi filter tanggal aktif
                     matchDate = false;
                 }
 
                 return matchPT && matchDate;
             });
+        }
+
+        /* ==========================================================================
+           MODULE: LOGIC PEMROSESAN PERMINTAAN KARYAWAN (REQUEST)
+           ========================================================================== */
+        
+        function calculateRequestKPI(data) {
+            let totalPermintaan = data.length;
+            let sudahTerpenuhi = 0;
+            let belumTerpenuhi = 0;
+            let sumDurasi = 0;
+            let durasiCount = 0;
+
+            data.forEach(row => {
+                let status = (row.proses_rekrutmen || row.status || '').toString().trim().toLowerCase();
+                let isDone = status.includes('done') || status === 'selesai';
+
+                if(isDone) {
+                    sudahTerpenuhi++;
+                    // Parsing durasi (menghilangkan karakter selain angka jika ada)
+                    let durasiRaw = (row.durasi || row.column_1 || '0').toString().replace(/[^0-9.-]+/g,"");
+                    let durasi = parseFloat(durasiRaw);
+                    if(!isNaN(durasi) && durasi > 0) {
+                        sumDurasi += durasi;
+                        durasiCount++;
+                    }
+                } else {
+                    belumTerpenuhi++;
+                }
+            });
+
+            let avgDurasi = durasiCount > 0 ? Math.round(sumDurasi / durasiCount) : 0;
+
+            return {
+                totalPermintaan,
+                sudahTerpenuhi,
+                belumTerpenuhi,
+                avgDurasi
+            };
+        }
+
+        function buildRequestMonthlyChart(data) {
+            let monthlyStats = {};
+
+            data.forEach(row => {
+                let status = (row.proses_rekrutmen || row.status || '').toString().trim().toLowerCase();
+                let isDone = status.includes('done') || status === 'selesai';
+                let rawDate = row.timestamp || row.tanggal || '';
+                
+                let monthStr = Utils.formatDateStr(rawDate);
+                if(!monthStr) monthStr = 'Unknown';
+
+                if(!monthlyStats[monthStr]) monthlyStats[monthStr] = { req: 0, done: 0 };
+                monthlyStats[monthStr].req++;
+                if(isDone) monthlyStats[monthStr].done++;
+            });
+
+            // Urutkan berdasarkan bulan dari yang terlama
+            let sortedMonths = Object.keys(monthlyStats).sort();
+
+            return {
+                labels: sortedMonths,
+                permintaan: sortedMonths.map(m => monthlyStats[m].req),
+                terpenuhi: sortedMonths.map(m => monthlyStats[m].done)
+            };
+        }
+
+        function buildRecruitmentPipelineChart(data) {
+            let pipelineStats = {};
+
+            data.forEach(row => {
+                // Kolom R: Proses Rekrutmen
+                let proses = (row.proses_rekrutmen || row.status || '').toString().trim();
+                // Antisipasi cell kosong
+                if(proses === '') proses = 'Open / Unprocessed';
+                
+                pipelineStats[proses] = (pipelineStats[proses] || 0) + 1;
+            });
+
+            return {
+                labels: Object.keys(pipelineStats),
+                data: Object.values(pipelineStats)
+            };
+        }
+
+        function buildOpenRequestTable(data) {
+            // Filter hanya yang belum "Done"
+            let openRequests = data.filter(row => {
+                let status = (row.proses_rekrutmen || row.status || '').toString().trim().toLowerCase();
+                let isDone = status.includes('done') || status === 'selesai';
+                return !isDone;
+            });
+
+            // Urutkan berdasarkan tanggal terbaru ke terlama
+            openRequests.sort((a, b) => {
+                let dateA = new Date(a.timestamp || a.tanggal || 0);
+                let dateB = new Date(b.timestamp || b.tanggal || 0);
+                return dateB - dateA; // Descending
+            });
+
+            return openRequests;
         }
 
         /* ==========================================================================
@@ -812,63 +902,57 @@
                 if(activePage === 'page-absensi') this.renderAbsensi();
             },
 
-            // --- PAGE 1: PERMINTAAN KARYAWAN ---
+            // --- PAGE 1: PERMINTAAN KARYAWAN (IMPLEMENTASI TERBARU) ---
             renderRequest: function() {
+                // 1. Dapatkan data yang sudah difilter secara global (PT dan Tanggal)
                 const data = applyFilter(DB.request, ['perusahaan_yang_mengajukan', 'pt'], ['timestamp', 'tanggal']);
                 
-                let total = data.length, done = 0, open = 0, sumDurasi = 0, durCount = 0;
-                let ptStats = {}, pipeStats = {};
+                // 2. Kalkulasi KPI berdasarkan data terfilter
+                const kpi = calculateRequestKPI(data);
+                document.getElementById('kpi-req-total').innerText = kpi.totalPermintaan;
+                document.getElementById('kpi-req-done').innerText = kpi.sudahTerpenuhi;
+                document.getElementById('kpi-req-open').innerText = kpi.belumTerpenuhi;
+                document.getElementById('kpi-req-avg').innerHTML = `${kpi.avgDurasi} <span style="font-size:1rem">Hari</span>`;
 
+                // 3. Render Bar Chart (Bulan di X-Axis)
+                const chartMonthly = buildRequestMonthlyChart(data);
+                AppCharts.render('chartReqBar', 'bar', chartMonthly.labels, [
+                    { label: 'Permintaan Masuk', data: chartMonthly.permintaan, backgroundColor: AppCharts.colors[0] },
+                    { label: 'Terpenuhi (Done)', data: chartMonthly.terpenuhi, backgroundColor: AppCharts.colors[1] }
+                ]);
+
+                // 4. Render Donut Chart (Pipeline)
+                const chartPipeline = buildRecruitmentPipelineChart(data);
+                AppCharts.render('chartReqPie', 'doughnut', chartPipeline.labels, [{
+                    data: chartPipeline.data, backgroundColor: AppCharts.colors
+                }], { cutout: '60%' });
+
+                // 5. Render Table Open Request (Hanya menampilkan yang belum terpenuhi)
+                const openRequests = buildOpenRequestTable(data);
                 const tbody = document.querySelector('#tableReq tbody');
                 tbody.innerHTML = '';
 
-                data.forEach((row, i) => {
-                    let status = (row.proses_rekrutmen || row.status || '').toLowerCase();
-                    let pt = (row.perusahaan_yang_mengajukan || row.pt || 'Unknown').toString().trim(); // Dibersihkan spasinya
+                openRequests.forEach((row, i) => {
+                    if(i >= 150) return; // Limit performa DOM
                     
-                    if(status.includes('done')) done++; else open++;
+                    let dateStr = row.timestamp ? row.timestamp.substring(0,10) : '-';
+                    let pt = (row.perusahaan_yang_mengajukan || row.pt || 'Unknown').toString().trim();
+                    let posisi = row.posisi_yang_dibutuhkan || '-';
+                    let level = row.level___golongan_karyawan || '-';
+                    let statusReq = row.status_permintaan || '-';
+                    let proses = row.proses_rekrutmen || 'Open';
+                    let pic = row.nama_yang_mengajukan || '-'; // Mapped to PIC
                     
-                    if(!ptStats[pt]) ptStats[pt] = { req: 0, done: 0 };
-                    ptStats[pt].req++;
-                    if(status.includes('done')) ptStats[pt].done++;
-
-                    let pipeStatus = row.proses_rekrutmen || 'Open';
-                    pipeStats[pipeStatus] = (pipeStats[pipeStatus] || 0) + 1;
-
-                    // Mock SLA calc based on 'durasi' if available
-                    let dur = parseInt(row.durasi || row.column_1 || 0);
-                    if(dur > 0) { sumDurasi += dur; durCount++; }
-
-                    if(i < 150) { // Limit rows
-                        let badge = status.includes('done') ? 'success' : 'warning';
-                        tbody.insertAdjacentHTML('beforeend', `<tr>
-                            <td>${row.timestamp ? row.timestamp.substring(0,10) : '-'}</td>
-                            <td><b>${pt}</b></td>
-                            <td>${row.posisi_yang_dibutuhkan || '-'}</td>
-                            <td>${row.level___golongan_karyawan || '-'}</td>
-                            <td>${row.status_permintaan || '-'}</td>
-                            <td><span class="badge ${badge}">${pipeStatus}</span></td>
-                            <td>${row.nama_yang_mengajukan || '-'}</td>
-                        </tr>`);
-                    }
+                    tbody.insertAdjacentHTML('beforeend', `<tr>
+                        <td>${dateStr}</td>
+                        <td><b>${pt}</b></td>
+                        <td>${posisi}</td>
+                        <td>${level}</td>
+                        <td>${statusReq}</td>
+                        <td><span class="badge warning">${proses}</span></td>
+                        <td>${pic}</td>
+                    </tr>`);
                 });
-
-                document.getElementById('kpi-req-total').innerText = total;
-                document.getElementById('kpi-req-done').innerText = done;
-                document.getElementById('kpi-req-open').innerText = open;
-                document.getElementById('kpi-req-avg').innerHTML = (durCount ? Math.round(sumDurasi/durCount) : 0) + ' <span style="font-size:1rem">Hari</span>';
-
-                // Chart 1: Bar
-                const labelsPT = Object.keys(ptStats);
-                AppCharts.render('chartReqBar', 'bar', labelsPT, [
-                    { label: 'Permintaan', data: labelsPT.map(p => ptStats[p].req), backgroundColor: AppCharts.colors[0] },
-                    { label: 'Terpenuhi', data: labelsPT.map(p => ptStats[p].done), backgroundColor: AppCharts.colors[1] }
-                ]);
-
-                // Chart 2: Pie
-                AppCharts.render('chartReqPie', 'doughnut', Object.keys(pipeStats), [{
-                    data: Object.values(pipeStats), backgroundColor: AppCharts.colors
-                }], { cutout: '60%' });
             },
 
             // --- PAGE 2: PELAMAR ---
