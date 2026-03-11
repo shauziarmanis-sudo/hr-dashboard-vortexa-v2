@@ -205,7 +205,6 @@
                 <li class="nav-item" data-page="page-absensi">
                     <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg></span> Overview Absensi
                 </li>
-                <!-- Child menus grouped in Overview for better UX in single-page -->
             </ul>
         </div>
     </aside>
@@ -616,12 +615,30 @@
                 document.body.removeChild(a);
             },
 
+            // REVISI: Pembaca Tanggal yang Jauh Lebih Kuat
             formatDateStr: function(raw) {
-                if(!raw) return '-';
-                // Try extract YYYY-MM
-                let match = raw.match(/(\d{4})-(\d{2})/);
-                if(match) return match[0];
-                return raw.substring(0, 7);
+                if(!raw) return '';
+                raw = String(raw).trim();
+                
+                // 1. Coba pola YYYY-MM-DD atau YYYY-MM (Standar Google Sheets)
+                let match1 = raw.match(/^(\d{4})-(\d{2})/);
+                if(match1) return `${match1[1]}-${match1[2]}`;
+
+                // 2. Coba pola DD/MM/YYYY atau DD-MM-YYYY (Format Indonesia)
+                let match2 = raw.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+                if(match2) {
+                    let d = match2[1], m = match2[2], y = match2[3];
+                    if(parseInt(m) > 12) { m = match2[1]; d = match2[2]; } // Fallback jika format MM/DD/YYYY
+                    return `${y}-${m.padStart(2, '0')}`;
+                }
+
+                // 3. Fallback: JS Date parser (Bisa baca format 01-Aug-2025 dll)
+                let parsed = new Date(raw);
+                if(!isNaN(parsed.getTime())) {
+                    return `${parsed.getFullYear()}-${String(parsed.getMonth()+1).padStart(2, '0')}`;
+                }
+                
+                return ''; // Return kosong agar tidak merusak filter
             },
 
             initTableSearch: function(inputId, tableId) {
@@ -639,7 +656,7 @@
         /* ==========================================================================
            MODULE: DATA LAYER (Fetch & State Management)
            ========================================================================== */
-        // !! SESUAIKAN SPREADSHEET ID DISINI !!
+        // SPREADSHEET ID ANDA
         const SPREADSHEET_ID = '151Fg_9eyMHRUAURz2SO5yzxZRz-sIuieUQW9pOBSJM0'; 
 
         const SHEET_NAMES = {
@@ -647,21 +664,19 @@
             pelamar: 'DS_Pelamar',
             pengajuan: 'DS_Pengajuan',
             prommut: 'DS_PromMut',
-            interview: 'Report_Interview', // Sesuai file user
+            interview: 'Report_Interview', 
             turnover: 'DS_Turnover',
             toSummary: 'Turnover_Summary',
-            absensi: 'DS_Absensi' // Tambahan sesuai struktur user
+            absensi: 'DS_Absensi',
+            sp_st: 'SP_ST' // DITAMBAHKAN: Untuk memuat data Surat Peringatan
         };
 
-        const DB = { request: [], pelamar: [], pengajuan: [], prommut: [], interview: [], turnover: [], toSummary: [], absensi: [] };
+        const DB = { request: [], pelamar: [], pengajuan: [], prommut: [], interview: [], turnover: [], toSummary: [], absensi: [], sp_st: [] };
         let activePT = 'ALL';
         let activeMonthFrom = '';
         let activeMonthTo = '';
 
         async function fetchSheetCSV(sheetName) {
-            if (SPREADSHEET_ID === '1234567890abcdefghijklmnopqrstuvwxyz') {
-                return generateMockData(sheetName); // Demo fallback
-            }
             const url = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:csv&sheet=${sheetName}`;
             try {
                 const res = await fetch(url, {cache: 'no-store'});
@@ -684,8 +699,9 @@
                 });
                 await Promise.all(tasks);
                 
-                // Set default dates based on data (find latest)
-                setDefaultDates();
+                // REVISI: Mengosongkan input bulan secara default agar SEMUA data terbuka
+                document.getElementById('filterDateFrom').value = '';
+                document.getElementById('filterDateTo').value = '';
                 
             } catch (err) {
                 alert('Gagal memuat sebagian data. Pastikan ID Spreadsheet valid & Public.');
@@ -696,42 +712,40 @@
             }
         }
 
-        function setDefaultDates() {
-            // Find max date from turnover or request to set default current month
-            let maxDate = '';
-            DB.turnover.forEach(r => {
-                let d = Utils.formatDateStr(r.bulan || r.tanggal);
-                if(d > maxDate && d.length === 7) maxDate = d;
-            });
-            if(maxDate) {
-                // Set To = maxDate, From = 6 months ago
-                document.getElementById('filterDateTo').value = maxDate;
-                activeMonthTo = maxDate;
-                
-                let [y, m] = maxDate.split('-');
-                let fromDate = new Date(y, parseInt(m)-6, 1);
-                let fromStr = `${fromDate.getFullYear()}-${String(fromDate.getMonth()+1).padStart(2,'0')}`;
-                document.getElementById('filterDateFrom').value = fromStr;
-                activeMonthFrom = fromStr;
-            }
-        }
+        // REVISI: Fungsi Filter Global yang Jauh Lebih Kuat
+        function applyFilter(dataArray, ptCols, dateCols) {
+            if(!Array.isArray(ptCols)) ptCols = [ptCols];
+            if(!Array.isArray(dateCols)) dateCols = [dateCols];
 
-        // Global Filter Function
-        function applyFilter(dataArray, ptCol, dateCol) {
             return dataArray.filter(row => {
-                // Filter PT
-                let rowPT = (row[ptCol] || '').toString().toUpperCase();
+                // Filter PT (Cek banyak kemungkinan nama kolom dan bersihkan spasi)
+                let rowPT = '';
+                for(let col of ptCols) {
+                    if(row[col]) { rowPT = row[col].toString().trim().toUpperCase(); break; }
+                }
                 let matchPT = activePT === 'ALL' || rowPT.includes(activePT);
 
                 // Filter Date
                 let matchDate = true;
-                if(dateCol && row[dateCol]) {
-                    let dStr = Utils.formatDateStr(row[dateCol]);
-                    if(dStr.length === 7) {
+                let rawDate = '';
+                for(let col of dateCols) {
+                    if(row[col]) { rawDate = row[col]; break; }
+                }
+
+                if(rawDate) {
+                    let dStr = Utils.formatDateStr(rawDate);
+                    if(dStr && dStr.length === 7) {
                         if(activeMonthFrom && dStr < activeMonthFrom) matchDate = false;
                         if(activeMonthTo && dStr > activeMonthTo) matchDate = false;
+                    } else {
+                        // Jika format tanggal gagal diparse & filter sedang aktif
+                        if(activeMonthFrom || activeMonthTo) matchDate = false;
                     }
+                } else if ((activeMonthFrom || activeMonthTo) && dateCols.length > 0) {
+                    // Jika data ini tidak punya kolom tanggal tapi filter tanggal aktif
+                    matchDate = false;
                 }
+
                 return matchPT && matchDate;
             });
         }
@@ -800,7 +814,7 @@
 
             // --- PAGE 1: PERMINTAAN KARYAWAN ---
             renderRequest: function() {
-                const data = applyFilter(DB.request, 'perusahaan_yang_mengajukan', 'timestamp');
+                const data = applyFilter(DB.request, ['perusahaan_yang_mengajukan', 'pt'], ['timestamp', 'tanggal']);
                 
                 let total = data.length, done = 0, open = 0, sumDurasi = 0, durCount = 0;
                 let ptStats = {}, pipeStats = {};
@@ -810,7 +824,7 @@
 
                 data.forEach((row, i) => {
                     let status = (row.proses_rekrutmen || row.status || '').toLowerCase();
-                    let pt = row.perusahaan_yang_mengajukan || row.pt || 'Unknown';
+                    let pt = (row.perusahaan_yang_mengajukan || row.pt || 'Unknown').toString().trim(); // Dibersihkan spasinya
                     
                     if(status.includes('done')) done++; else open++;
                     
@@ -859,7 +873,7 @@
 
             // --- PAGE 2: PELAMAR ---
             renderPelamar: function() {
-                const data = applyFilter(DB.pelamar, 'brand_yang_dilamar', 'timestamp');
+                const data = applyFilter(DB.pelamar, ['brand_yang_dilamar', 'pt'], ['timestamp', 'tanggal_daftar']);
                 let total = data.length, review = 0, join = 0, gagal = 0;
                 let sources = {};
 
@@ -872,7 +886,7 @@
                     else if(st.includes('gagal') || st.includes('mundur') || st.includes('tidak')) gagal++;
                     else review++;
 
-                    let src = row.dari_mana_anda_mengetahui_informasi_posisi_yang_anda_lamar_ || 'Lainnya';
+                    let src = (row.dari_mana_anda_mengetahui_informasi_posisi_yang_anda_lamar_ || 'Lainnya').toString().trim();
                     if(src.length > 25) src = 'Lainnya'; // simplify long text
                     sources[src] = (sources[src] || 0) + 1;
 
@@ -906,34 +920,38 @@
 
             // --- PAGE 3: PENGAJUAN & SP ---
             renderPengajuan: function() {
-                // Combine pengajuan & SP data for rich view
-                const dPeng = applyFilter(DB.pengajuan, 'pt', 'timestamp');
-                const dSP = applyFilter(DB.SP_ST || [], 'pt', 'tanggal_pengajuan'); // Note: handle if SP_ST not strictly loaded, fallback to pengajuan cats
+                const dPeng = applyFilter(DB.pengajuan, ['pt', 'perusahaan'], ['timestamp', 'tanggal']);
+                const dSP = applyFilter(DB.sp_st, ['pt', 'perusahaan'], ['tanggal_pengajuan', 'tanggal']); 
                 
-                let total = dPeng.length, spCount = 0, resignCount = 0;
+                // Gabung data Pengajuan Resign/dll dan Data Surat Peringatan (SP)
+                const combinedData = [...dPeng, ...dSP];
+                
+                let total = dPeng.length, spCount = dSP.length, resignCount = 0;
                 let cats = {}, trends = {};
 
                 const tbody = document.querySelector('#tablePeng tbody');
                 tbody.innerHTML = '';
 
-                dPeng.forEach((row, i) => {
-                    let cat = row.kategori_pengajuan || 'Lainnya';
+                combinedData.forEach((row, i) => {
+                    let cat = row.kategori_pengajuan || row.jenis_sp || 'Lainnya';
                     cats[cat] = (cats[cat] || 0) + 1;
                     
                     if(cat.toLowerCase().includes('resign') || cat.toLowerCase().includes('phk')) resignCount++;
-                    if(cat.toLowerCase().includes('sp') || cat.toLowerCase().includes('teguran')) spCount++;
 
-                    let month = Utils.formatDateStr(row.timestamp);
+                    let rawDate = row.timestamp || row.tanggal_pengajuan;
+                    let month = Utils.formatDateStr(rawDate);
                     if(month && month.length === 7) trends[month] = (trends[month] || 0) + 1;
 
-                    if(i < 100) {
+                    if(i < 150) {
+                        let badge = cat.toLowerCase().includes('sp') ? 'warning' : 'info';
+                        let pt = (row.pt || '-').toString().trim();
                         tbody.insertAdjacentHTML('beforeend', `<tr>
-                            <td>${row.timestamp ? row.timestamp.substring(0,10) : '-'}</td>
-                            <td><b>${row.pt || '-'}</b></td>
-                            <td>${row.nama_karyawan_yang_bersangkutan || '-'}</td>
-                            <td>${row.jabatan_saat_ini || '-'}</td>
+                            <td>${rawDate ? rawDate.substring(0,10) : '-'}</td>
+                            <td><b>${pt}</b></td>
+                            <td>${row.nama_karyawan_yang_bersangkutan || row.nama_karyawan || '-'}</td>
+                            <td>${row.jabatan_saat_ini || row.jabatan || '-'}</td>
                             <td>${cat}</td>
-                            <td><span class="badge info">${row.status || 'Submitted'}</span></td>
+                            <td><span class="badge ${badge}">${row.status || 'Submitted'}</span></td>
                         </tr>`);
                     }
                 });
@@ -948,14 +966,14 @@
 
                 const sortedMonths = Object.keys(trends).sort();
                 AppCharts.render('chartPengTrend', 'line', sortedMonths, [{
-                    label: 'Pengajuan Masuk', data: sortedMonths.map(m => trends[m]), 
+                    label: 'Pengajuan & SP Masuk', data: sortedMonths.map(m => trends[m]), 
                     borderColor: AppCharts.colors[0], backgroundColor: 'rgba(79, 70, 229, 0.1)', fill: true, tension: 0.3
                 }]);
             },
 
             // --- PAGE 4: PROM/MUT/DEM ---
             renderPromMut: function() {
-                const data = applyFilter(DB.prommut, 'pt', 'date'); // Fallback if col name differs
+                const data = applyFilter(DB.prommut, ['pt', 'perusahaan'], ['tanggal_efektif_perubahan', 'date', 'tanggal']);
                 let prom = 0, mut = 0, dem = 0;
                 let ptStats = {};
 
@@ -968,7 +986,7 @@
                     else if(jenis.includes('mutasi')) mut++;
                     else if(jenis.includes('demosi')) dem++;
 
-                    let pt = row.pt || 'Unknown';
+                    let pt = (row.pt || 'Unknown').toString().trim();
                     ptStats[pt] = (ptStats[pt] || 0) + 1;
 
                     if(i < 100) {
@@ -1001,7 +1019,7 @@
 
             // --- PAGE 5: INTERVIEW ---
             renderInterview: function() {
-                const data = applyFilter(DB.interview, 'perusahaan', 'tanggal');
+                const data = applyFilter(DB.interview, ['perusahaan', 'pt'], ['tanggal']);
                 let total = data.length, hadir = 0, res = 0;
                 let ptShow = {};
 
@@ -1013,7 +1031,7 @@
                     if(st.includes('hadir') || st.includes('ok') || st.includes('confirm')) hadir++;
                     else if(st.includes('reschedule') || st.includes('tidak') || st.includes('not')) res++;
 
-                    let pt = row.perusahaan || row.pt || 'Unknown';
+                    let pt = (row.perusahaan || row.pt || 'Unknown').toString().trim();
                     if(!ptShow[pt]) ptShow[pt] = { inv: 0, att: 0 };
                     ptShow[pt].inv++;
                     if(st.includes('hadir') || st.includes('ok')) ptShow[pt].att++;
@@ -1050,7 +1068,7 @@
 
             // --- PAGE 6: TURNOVER ---
             renderTurnover: function() {
-                const data = applyFilter(DB.turnover, 'perusahaan', 'bulan');
+                const data = applyFilter(DB.turnover, ['perusahaan', 'pt'], ['bulan', 'tanggal']);
                 let join = 0, out = 0;
                 let trends = {}, ptOut = {};
 
@@ -1062,8 +1080,8 @@
                     if(st === 'IN') join++;
                     else if(st === 'OUT') out++;
 
-                    let pt = row.perusahaan || row.pt || 'Unknown';
-                    let mo = Utils.formatDateStr(row.bulan);
+                    let pt = (row.perusahaan || row.pt || 'Unknown').toString().trim();
+                    let mo = Utils.formatDateStr(row.bulan || row.tanggal);
                     
                     if(!trends[mo]) trends[mo] = { in: 0, out: 0 };
                     if(st === 'IN') trends[mo].in++;
@@ -1109,7 +1127,7 @@
 
             // --- PAGE 7: ABSENSI ---
             renderAbsensi: function() {
-                const data = applyFilter(DB.absensi, 'pt', ''); // Absensi might not have strict month format in sample, process all based on PT
+                const data = applyFilter(DB.absensi, ['pt', 'perusahaan'], []); // Array tanggal dikosongkan karena absensi belum punya kolom spesifik bulan di Master
                 let totalHk = 0, late = 0, sick = 0, mangkir = 0;
                 let ptStats = {}, empLate = [];
 
@@ -1124,7 +1142,7 @@
                     
                     totalHk += hk; late += lt; sick += sk; mangkir += mk;
 
-                    let pt = row.pt || 'Unknown';
+                    let pt = (row.pt || 'Unknown').toString().trim();
                     if(!ptStats[pt]) ptStats[pt] = { hk: 0, lt: 0, ab: 0 };
                     ptStats[pt].hk += hk; ptStats[pt].lt += lt; ptStats[pt].ab += (sk+mk);
 
@@ -1228,42 +1246,6 @@
             // Boot App
             initData();
         });
-
-        /* ==========================================================================
-           MOCK DATA (Fallback jika Spreadsheet ID belum diset/error)
-           ========================================================================== */
-        function generateMockData(sheetName) {
-            return new Promise(resolve => {
-                setTimeout(() => {
-                    let d = [];
-                    if(sheetName === SHEET_NAMES.request) d = [
-                        {timestamp: '2025-08-01', perusahaan_yang_mengajukan: 'VVA', posisi_yang_dibutuhkan: 'Pizza Cook', status_permintaan: 'Additional', proses_rekrutmen: 'Done', durasi: '10'},
-                        {timestamp: '2026-03-09', perusahaan_yang_mengajukan: 'VLA', posisi_yang_dibutuhkan: 'Dishwasher', status_permintaan: 'Replacement', proses_rekrutmen: 'Open', durasi: '5'}
-                    ];
-                    if(sheetName === SHEET_NAMES.pelamar) d = [
-                        {timestamp: '2025-08-04', nama_lengkap: 'Rudy Hartono', brand_yang_dilamar: 'VVA', status: 'Gagal'},
-                        {timestamp: '2026-03-09', nama_lengkap: 'Putri Amalia', brand_yang_dilamar: 'VLA', status: 'Lulus / Join'}
-                    ];
-                    if(sheetName === SHEET_NAMES.pengajuan) d = [
-                        {timestamp: '2026-03-09', pt: 'VLA', kategori_pengajuan: 'Promosi', status: 'Submitted'},
-                        {timestamp: '2026-02-18', pt: 'VVA', kategori_pengajuan: 'SP 1', status: 'Done'}
-                    ];
-                    if(sheetName === SHEET_NAMES.prommut) d = [
-                        {date: '2026-02-19', pt: 'VVA', jenis_pengajuan: 'Promosi', jabatan_baru: 'Leader Store'}
-                    ];
-                    if(sheetName === SHEET_NAMES.turnover) d = [
-                        {bulan: '2026-03-01', perusahaan: 'VVA', status: 'IN', posisi: 'Kitchen Crew'},
-                        {bulan: '2026-03-01', perusahaan: 'VLA', status: 'OUT', posisi: 'Waiter'}
-                    ];
-                    if(sheetName === SHEET_NAMES.absensi) d = [
-                        {nik: 'VLA-001', nama_karyawan: 'Ridho', pt: 'VLA', hari_kerja: '25', sakit: '1', terlambat: '0'},
-                        {nik: 'VVA-002', nama_karyawan: 'Ahmad', pt: 'VVA', hari_kerja: '24', sakit: '0', terlambat: '3'}
-                    ];
-                    resolve(d);
-                }, 500);
-            });
-        }
     </script>
 </body>
-
 </html>
